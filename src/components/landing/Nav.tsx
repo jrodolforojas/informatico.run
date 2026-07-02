@@ -8,7 +8,7 @@ import { Mark } from "@/components/ui/Mark";
 import { Wordmark } from "@/components/ui/Wordmark";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
-import { signOut } from "@/lib/supabase/auth-actions";
+import { signOutAction } from "@/app/auth/signout/action";
 
 const NAV_ITEMS: { label: string; href: string; match?: string }[] = [
   { label: "Inicio", href: "/", match: "/" },
@@ -50,11 +50,6 @@ export function Nav() {
 
   const displayName =
     (user?.user_metadata?.full_name as string | undefined) ?? user?.email;
-
-  async function handleSignOut() {
-    await signOut();
-    window.location.assign("/");
-  }
 
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-paper/[0.86] backdrop-blur-md">
@@ -111,9 +106,11 @@ export function Nav() {
               >
                 {displayName}
               </Link>
-              <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                Salir
-              </Button>
+              <form action={signOutAction}>
+                <Button variant="ghost" size="sm" type="submit">
+                  Salir
+                </Button>
+              </form>
             </div>
           ) : (
             <Button href="/inscripcion" size="sm">

@@ -23,8 +23,3 @@ export async function signInWithEmail(email: string, next = "/") {
 export function connectStravaUrl(next: string) {
   return `/api/strava/connect?next=${encodeURIComponent(next)}`;
 }
-
-export async function signOut() {
-  const supabase = createClient();
-  return supabase.auth.signOut({ scope: "local" });
-}
