@@ -5,6 +5,11 @@ export const metadata: Metadata = {
   title: "Conectá tu actividad — informático.run()",
 };
 
-export default function Page() {
-  return <LoginConnect />;
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
+  return <LoginConnect next={next} />;
 }

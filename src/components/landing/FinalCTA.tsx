@@ -10,8 +10,7 @@ export function FinalCTA() {
             ¿Listo para correr?
           </h2>
           <p className="mb-5 mt-2.5 font-display text-[14.5px] text-teal-deep lg:text-[17px]">
-            Quedan 173 dorsales. Asegurá tu camiseta y tu lugar en la línea de
-            salida.
+            Cupos limitados. Asegurá tu camiseta y tu lugar en la línea de salida.
           </p>
           <Button href="/inscripcion" size="lg" className="w-full lg:w-auto">
             Inscribite ahora

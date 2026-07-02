@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { Container } from "./Container";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -5,6 +8,31 @@ import { RunnerDots } from "@/components/ui/decorations";
 import { C } from "@/lib/tokens";
 
 export function Referral() {
+  const [copied, setCopied] = useState(false);
+
+  async function share() {
+    const url = `${window.location.origin}/inscripcion`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "informático.run()",
+          text: "Corré conmigo la carrera del informático 🏃",
+          url,
+        });
+        return;
+      } catch {
+        return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard no disponible */
+    }
+  }
+
   return (
     <section>
       <Container className="py-10">
@@ -20,21 +48,20 @@ export function Referral() {
               ¿Y vos? Retá a un colega.
             </h2>
             <p className="font-display text-[13.5px] leading-[1.5] text-ink-80 lg:text-[15.5px]">
-              Compartí tu link de invitación. Por cada colega que se inscribe con
-              él, los dos entran al sorteo de la mochila Stellar + un mes de
-              Electrolit.
+              Compartí la carrera con tus colegas. Mientras más informáticos en la
+              línea de salida, mejor.
             </p>
           </div>
           <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[280px]">
             <div className="flex items-center gap-2.5 rounded-xl border border-line bg-paper px-4 py-3">
               <Icon name="link" size={18} color={C.mut} />
               <span className="font-mono text-[13px] text-ink">
-                informatico.run/r/<b>andresmv</b>
+                informatico.run/inscripcion
               </span>
             </div>
-            <Button variant="primary" className="justify-center">
+            <Button variant="primary" className="justify-center" onClick={share}>
               <Icon name="share" size={18} color="#ffffff" />
-              Copiar mi link
+              {copied ? "¡Link copiado!" : "Compartir invitación"}
             </Button>
           </div>
         </div>

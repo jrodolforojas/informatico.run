@@ -20,10 +20,10 @@ const TEMPLATES: { k: Template; name: string; bg: string }[] = [
 
 const ACCENTS = [C.teal, C.tealBright, C.gold, C.ink];
 
-export function Customizer() {
+export function Customizer({ initialDorsal }: { initialDorsal?: number | null }) {
   const [template, setTemplate] = useState<Template>("dark");
   const [accent, setAccent] = useState<string>(C.teal);
-  const [dorsal, setDorsal] = useState(42);
+  const [dorsal, setDorsal] = useState(initialDorsal ?? 42);
   const [phrase, setPhrase] = useState("Mi primer 5K, verificado.");
 
   return (

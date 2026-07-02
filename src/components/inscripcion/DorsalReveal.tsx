@@ -4,13 +4,29 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { C } from "@/lib/tokens";
 
-const DETAILS: [string, string][] = [
-  ["5K", "DISTANCIA"],
-  ["M", "TALLA"],
-  ["Open M", "CATEGORÍA"],
-];
+type DorsalRevealProps = {
+  dorsal: number;
+  fullName: string;
+  distance: string;
+  shirtSize: string;
+  category: string;
+  edition: number | null;
+};
 
-export function DorsalReveal() {
+export function DorsalReveal({
+  dorsal,
+  fullName,
+  distance,
+  shirtSize,
+  category,
+  edition,
+}: DorsalRevealProps) {
+  const details: [string, string][] = [
+    [distance, "DISTANCIA"],
+    [shirtSize, "TALLA"],
+    [category, "CATEGORÍA"],
+  ];
+
   return (
     <div className="mx-auto flex max-w-[720px] flex-col items-center px-5 py-12 text-center lg:px-10">
       <Check size={56} bg={C.mint} color={C.verified} />
@@ -29,7 +45,7 @@ export function DorsalReveal() {
         <div className="flex items-center justify-between bg-ink px-6 py-5">
           <Wordmark size={14} light />
           <span className="font-mono text-[10px] tracking-[0.1em] text-[#7f8da0]">
-            5ª ED · 2026
+            {edition ? `${edition}ª ED` : "ED"} · 2026
           </span>
         </div>
         <div className="px-6 pb-6 pt-7 text-left">
@@ -37,14 +53,14 @@ export function DorsalReveal() {
             TU DORSAL
           </div>
           <div className="mt-1 font-mono text-[72px] font-bold leading-none tracking-[-0.04em] text-ink lg:text-[88px]">
-            #287
+            #{dorsal}
           </div>
           <div className="mt-2.5 font-display text-[18px] font-semibold">
-            Andrés Morales Vargas
+            {fullName}
           </div>
         </div>
         <div className="grid grid-cols-3 border-t border-line">
-          {DETAILS.map(([v, l], i) => (
+          {details.map(([v, l], i) => (
             <div
               key={l}
               className={`py-4 text-center ${i < 2 ? "border-r border-line" : ""}`}
