@@ -4,16 +4,15 @@ import { useActionState, useEffect, useState, startTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { User } from "@supabase/supabase-js";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { Label } from "@/components/ui/Label";
 import { Chip } from "@/components/ui/Chip";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { GoogleG } from "@/components/ui/BrandMarks";
-import { createClient } from "@/lib/supabase/client";
 import { signInWithGoogle, signInWithEmail } from "@/lib/supabase/auth-actions";
 import { crearInscripcion } from "@/app/inscripcion/actions";
+import { INSCRIPCION_DEFAULTS } from "@/lib/inscripcion-defaults";
 import {
   inscripcionSchema,
   type InscripcionInput,
@@ -59,34 +58,18 @@ function FieldError({ msg }: { msg?: string }) {
   return <p className="mt-1 font-display text-[12px] text-danger">{msg}</p>;
 }
 
-function splitName(full: string): [string, string] {
-  const parts = full.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return ["", ""];
-  if (parts.length === 1) return [parts[0], ""];
-  return [parts[0], parts.slice(1).join(" ")];
-}
+type InscripcionInitial =
+  | { loggedIn: false }
+  | {
+      loggedIn: true;
+      values: InscripcionInput;
+      price: number;
+      sinpe: { phone: string; name: string };
+    };
 
-const DEFAULTS: InscripcionInput = {
-  first_name: "",
-  last_name: "",
-  email: "",
-  phone: "",
-  cedula: "",
-  birthdate: "",
-  gender: "",
-  dominant_hand: "",
-  beneficiario_nombre: "",
-  beneficiario_parentesco: "",
-  distance: "5K",
-  category: "Mayor",
-  shirt_size: "M",
-};
-
-export function InscripcionForm() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [price, setPrice] = useState(12000);
-  const [sinpe, setSinpe] = useState({ phone: "8671 7767", name: "" });
+export function InscripcionForm({ initial }: { initial: InscripcionInitial }) {
+  const price = initial.loggedIn ? initial.price : 12000;
+  const sinpe = initial.loggedIn ? initial.sinpe : { phone: "8671 7767", name: "" };
 
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
@@ -106,81 +89,13 @@ export function InscripcionForm() {
     register,
     control,
     handleSubmit,
-    reset,
     setValue,
     formState: { errors },
   } = useForm<InscripcionInput, unknown, InscripcionData>({
     resolver: zodResolver(inscripcionSchema),
     mode: "onTouched",
-    defaultValues: DEFAULTS,
+    defaultValues: initial.loggedIn ? initial.values : INSCRIPCION_DEFAULTS,
   });
-
-  useEffect(() => {
-    const supabase = createClient();
-
-    async function load() {
-      const { data: auth } = await supabase.auth.getUser();
-      setUser(auth.user);
-      setLoading(false);
-      if (!auth.user) return;
-
-      const meta = auth.user.user_metadata as {
-        given_name?: string;
-        family_name?: string;
-        full_name?: string;
-        name?: string;
-      };
-      const [metaFirst, metaLast] = splitName(meta.full_name || meta.name || "");
-
-      reset({
-        ...DEFAULTS,
-        first_name: meta.given_name || metaFirst,
-        last_name: meta.family_name || metaLast,
-        email: auth.user.email ?? "",
-      });
-
-      const [{ data: profile }, { data: event }] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("first_name, last_name, full_name, email, phone, cedula, gender, birthdate, dominant_hand")
-          .eq("id", auth.user.id)
-          .maybeSingle(),
-        supabase
-          .from("events")
-          .select("price_colones, sinpe_phone, sinpe_name")
-          .eq("registration_open", true)
-          .order("edition", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
-
-      if (profile) {
-        const [fullFirst, fullLast] = splitName(profile.full_name ?? "");
-        reset({
-          ...DEFAULTS,
-          first_name: profile.first_name || meta.given_name || fullFirst || metaFirst,
-          last_name: profile.last_name || meta.family_name || fullLast || metaLast,
-          email: profile.email || auth.user.email || "",
-          phone: profile.phone ?? "",
-          cedula: profile.cedula ?? "",
-          birthdate: profile.birthdate ?? "",
-          gender: profile.gender ?? "",
-          dominant_hand: profile.dominant_hand ?? "",
-        });
-      }
-
-      if (event) {
-        setPrice(event.price_colones);
-        setSinpe({ phone: event.sinpe_phone ?? "8671 7767", name: event.sinpe_name ?? "" });
-      }
-    }
-
-    load();
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) =>
-      setUser(session?.user ?? null),
-    );
-    return () => sub.subscription.unsubscribe();
-  }, [reset]);
 
   async function onSendLink(e: React.FormEvent) {
     e.preventDefault();
@@ -224,7 +139,7 @@ export function InscripcionForm() {
         Entrá con tu cuenta para asegurar tu dorsal. Te llega el comprobante al correo.
       </p>
 
-      {!loading && !user && (
+      {!initial.loggedIn && (
         <div className="flex flex-col gap-5 rounded-2xl border border-line bg-white p-6 shadow-[0_1px_2px_rgba(15,27,45,0.06)] lg:p-7">
           <p className="font-display text-[15px] text-ink-80">
             Iniciá sesión para asegurar tu dorsal.
@@ -270,7 +185,7 @@ export function InscripcionForm() {
         </div>
       )}
 
-      {user && (
+      {initial.loggedIn && (
         <form
           onSubmit={handleSubmit(onValid)}
           noValidate
