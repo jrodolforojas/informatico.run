@@ -59,6 +59,29 @@ function FieldError({ msg }: { msg?: string }) {
   return <p className="mt-1 font-display text-[12px] text-danger">{msg}</p>;
 }
 
+function splitName(full: string): [string, string] {
+  const parts = full.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return ["", ""];
+  if (parts.length === 1) return [parts[0], ""];
+  return [parts[0], parts.slice(1).join(" ")];
+}
+
+const DEFAULTS: InscripcionInput = {
+  first_name: "",
+  last_name: "",
+  email: "",
+  phone: "",
+  cedula: "",
+  birthdate: "",
+  gender: "",
+  dominant_hand: "",
+  beneficiario_nombre: "",
+  beneficiario_parentesco: "",
+  distance: "5K",
+  category: "Mayor",
+  shirt_size: "M",
+};
+
 export function InscripcionForm() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -89,21 +112,7 @@ export function InscripcionForm() {
   } = useForm<InscripcionInput, unknown, InscripcionData>({
     resolver: zodResolver(inscripcionSchema),
     mode: "onTouched",
-    defaultValues: {
-      first_name: "",
-      last_name: "",
-      email: "",
-      phone: "",
-      cedula: "",
-      birthdate: "",
-      gender: "",
-      dominant_hand: "",
-      beneficiario_nombre: "",
-      beneficiario_parentesco: "",
-      distance: "5K",
-      category: "Mayor",
-      shirt_size: "M",
-    },
+    defaultValues: DEFAULTS,
   });
 
   useEffect(() => {
@@ -115,37 +124,50 @@ export function InscripcionForm() {
       setLoading(false);
       if (!auth.user) return;
 
+      const meta = auth.user.user_metadata as {
+        given_name?: string;
+        family_name?: string;
+        full_name?: string;
+        name?: string;
+      };
+      const [metaFirst, metaLast] = splitName(meta.full_name || meta.name || "");
+
+      reset({
+        ...DEFAULTS,
+        first_name: meta.given_name || metaFirst,
+        last_name: meta.family_name || metaLast,
+        email: auth.user.email ?? "",
+      });
+
       const [{ data: profile }, { data: event }] = await Promise.all([
         supabase
           .from("profiles")
           .select("first_name, last_name, full_name, email, phone, cedula, gender, birthdate, dominant_hand")
           .eq("id", auth.user.id)
-          .single(),
+          .maybeSingle(),
         supabase
           .from("events")
           .select("price_colones, sinpe_phone, sinpe_name")
           .eq("registration_open", true)
           .order("edition", { ascending: false })
           .limit(1)
-          .single(),
+          .maybeSingle(),
       ]);
 
-      const meta = auth.user.user_metadata as { given_name?: string; family_name?: string };
-      reset({
-        first_name: profile?.first_name || meta.given_name || profile?.full_name || "",
-        last_name: profile?.last_name || meta.family_name || "",
-        email: profile?.email || auth.user.email || "",
-        phone: profile?.phone ?? "",
-        cedula: profile?.cedula ?? "",
-        birthdate: profile?.birthdate ?? "",
-        gender: profile?.gender ?? "",
-        dominant_hand: profile?.dominant_hand ?? "",
-        beneficiario_nombre: "",
-        beneficiario_parentesco: "",
-        distance: "5K",
-        category: "Mayor",
-        shirt_size: "M",
-      });
+      if (profile) {
+        const [fullFirst, fullLast] = splitName(profile.full_name ?? "");
+        reset({
+          ...DEFAULTS,
+          first_name: profile.first_name || meta.given_name || fullFirst || metaFirst,
+          last_name: profile.last_name || meta.family_name || fullLast || metaLast,
+          email: profile.email || auth.user.email || "",
+          phone: profile.phone ?? "",
+          cedula: profile.cedula ?? "",
+          birthdate: profile.birthdate ?? "",
+          gender: profile.gender ?? "",
+          dominant_hand: profile.dominant_hand ?? "",
+        });
+      }
 
       if (event) {
         setPrice(event.price_colones);
