@@ -26,5 +26,5 @@ export function connectStravaUrl(next: string) {
 
 export async function signOut() {
   const supabase = createClient();
-  return supabase.auth.signOut();
+  return supabase.auth.signOut({ scope: "local" });
 }

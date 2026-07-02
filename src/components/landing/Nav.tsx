@@ -51,6 +51,11 @@ export function Nav() {
   const displayName =
     (user?.user_metadata?.full_name as string | undefined) ?? user?.email;
 
+  async function handleSignOut() {
+    await signOut();
+    window.location.assign("/");
+  }
+
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-paper/[0.86] backdrop-blur-md">
       <div className="mx-auto flex max-w-[1080px] items-center justify-between px-5 py-4 lg:px-10">
@@ -106,7 +111,7 @@ export function Nav() {
               >
                 {displayName}
               </Link>
-              <Button variant="ghost" size="sm" onClick={() => signOut()}>
+              <Button variant="ghost" size="sm" onClick={handleSignOut}>
                 Salir
               </Button>
             </div>
