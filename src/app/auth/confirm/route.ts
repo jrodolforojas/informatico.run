@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type");
-  const next = safeNext(searchParams.get("next"));
+  const next = safeNext(searchParams.get("next"), "/inscripcion");
   const error = searchParams.get("error_description") ?? searchParams.get("error");
 
   if (error) {
