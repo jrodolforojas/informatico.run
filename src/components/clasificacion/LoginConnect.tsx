@@ -10,11 +10,7 @@ import {
   signInWithEmail,
   connectStravaUrl,
 } from "@/lib/supabase/auth-actions";
-
-function safeNext(next?: string) {
-  if (next && next.startsWith("/") && !next.startsWith("//")) return next;
-  return "/clasificacion";
-}
+import { safeNext } from "@/lib/auth/safe-next";
 
 export function LoginConnect({ next }: { next?: string }) {
   const dest = safeNext(next);
