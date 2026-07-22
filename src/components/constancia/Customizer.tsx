@@ -20,7 +20,16 @@ const TEMPLATES: { k: Template; name: string; bg: string }[] = [
 
 const ACCENTS = [C.teal, C.tealBright, C.gold, C.ink];
 
-export function Customizer({ initialDorsal }: { initialDorsal?: number | null }) {
+/** Tiempo oficial ya anclado en Stellar. Sin esto la vista previa es de ejemplo. */
+export type ResultadoVerificado = { time: string; pace: string; vcId: string };
+
+export function Customizer({
+  initialDorsal,
+  resultado,
+}: {
+  initialDorsal?: number | null;
+  resultado?: ResultadoVerificado;
+}) {
   const [template, setTemplate] = useState<Template>("dark");
   const [accent, setAccent] = useState<string>(C.teal);
   const [dorsal, setDorsal] = useState(initialDorsal ?? 42);
@@ -159,6 +168,12 @@ export function Customizer({ initialDorsal }: { initialDorsal?: number | null })
                 dorsal={`#${dorsal}`}
                 phrase={phrase}
                 ratio="story"
+                data={
+                  resultado
+                    ? { time: resultado.time, pace: resultado.pace, dist: "5K" }
+                    : undefined
+                }
+                vcId={resultado?.vcId}
               />
             </div>
           </div>

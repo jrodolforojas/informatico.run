@@ -1,3 +1,8 @@
+# pnpm 11 exige decidir explícitamente por cada paquete con build script.
+# Ambos quedan en false, que es lo que ya expresaba ignoredBuiltDependencies.
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver

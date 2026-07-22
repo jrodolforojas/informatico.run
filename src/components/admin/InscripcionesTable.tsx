@@ -9,6 +9,7 @@ import {
   aprobarInscripcion,
   rechazarInscripcion,
   getComprobanteUrl,
+  registrarResultado,
 } from "@/app/admin/actions";
 
 export type AdminRow = {
@@ -68,12 +69,18 @@ export function InscripcionesTable({ rows }: { rows: AdminRow[] }) {
   const [error, setError] = useState<string | null>(null);
   const [rejectFor, setRejectFor] = useState<AdminRow | null>(null);
   const [reason, setReason] = useState("");
+  const [resultFor, setResultFor] = useState<AdminRow | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   const visible = filter === "all" ? rows : rows.filter((r) => r.status === filter);
 
-  function run(id: string, fn: () => Promise<{ ok?: boolean; error?: string }>) {
+  function run(
+    id: string,
+    fn: () => Promise<{ ok?: boolean; error?: string; credentialWarning?: string }>,
+  ) {
     setError(null);
+    setNotice(null);
     setPendingId(id);
     startTransition(async () => {
       const res = await fn();
@@ -82,6 +89,9 @@ export function InscripcionesTable({ rows }: { rows: AdminRow[] }) {
         setError(res.error);
         return;
       }
+      // La inscripción se aprobó pero la constancia no se ancló: hay que
+      // saberlo sin que parezca que falló todo.
+      if (res.credentialWarning) setNotice(res.credentialWarning);
       router.refresh();
     });
   }
@@ -118,6 +128,12 @@ export function InscripcionesTable({ rows }: { rows: AdminRow[] }) {
 
       {error && (
         <p className="mt-3 font-display text-[13px] text-danger">{error}</p>
+      )}
+
+      {notice && (
+        <p className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 font-display text-[13px] text-amber-800">
+          {notice}
+        </p>
       )}
 
       <div className="mt-4 overflow-x-auto rounded-2xl border border-line bg-white shadow-[0_8px_24px_rgba(15,27,45,0.08)]">
@@ -190,6 +206,16 @@ export function InscripcionesTable({ rows }: { rows: AdminRow[] }) {
                       {busy ? "…" : "Aprobar"}
                     </button>
                   )}
+                  {r.status === "paid" && r.dorsal != null && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setResultFor(r)}
+                      className="rounded-full border border-teal bg-mint-2 px-3 py-1.5 font-display text-[12px] font-semibold text-teal-deep transition hover:bg-mint disabled:opacity-50"
+                    >
+                      Tiempo
+                    </button>
+                  )}
                   {r.status !== "cancelled" && (
                     <button
                       type="button"
@@ -247,6 +273,155 @@ export function InscripcionesTable({ rows }: { rows: AdminRow[] }) {
           </div>
         </div>
       )}
+
+      {resultFor && (
+        <ResultadoModal
+          row={resultFor}
+          onClose={() => setResultFor(null)}
+          onDone={(msg) => {
+            setResultFor(null);
+            setNotice(msg);
+            router.refresh();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Registra el tiempo oficial y ancla la constancia de finisher en Stellar.
+ *
+ * Cada emisión cuesta tarifa on-chain (5 XLM en testnet, 1 USDC en mainnet),
+ * así que el botón se bloquea mientras corre y el `vcId` es determinista:
+ * reenviar el mismo dorsal no cobra dos veces.
+ */
+function ResultadoModal({
+  row,
+  onClose,
+  onDone,
+}: {
+  row: AdminRow;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const [tiempo, setTiempo] = useState("");
+  const [ritmo, setRitmo] = useState("");
+  const [posGeneral, setPosGeneral] = useState("");
+  const [posCategoria, setPosCategoria] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function submit() {
+    setErr(null);
+    setBusy(true);
+    const res = await registrarResultado({
+      inscripcionId: row.id,
+      tiempoOficial: tiempo,
+      ritmo: ritmo || null,
+      posicionGeneral: posGeneral ? Number(posGeneral) : null,
+      posicionCategoria: posCategoria ? Number(posCategoria) : null,
+    });
+    setBusy(false);
+
+    if (res.error) {
+      setErr(res.error);
+      return;
+    }
+    onDone(
+      res.txId
+        ? `Constancia de ${row.fullName} anclada en Stellar (tx ${res.txId.slice(0, 8)}…).`
+        : `Constancia de ${row.fullName} registrada.`,
+    );
+  }
+
+  const field =
+    "block w-full rounded-xl border border-line bg-white px-[14px] py-2.5 font-mono text-[14px] text-ink outline-none focus:border-teal";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-5" onClick={onClose}>
+      <div
+        className="w-full max-w-[420px] rounded-2xl border border-line bg-white p-6 shadow-[0_24px_60px_rgba(15,27,45,0.2)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-mut">
+          {"/// Tiempo oficial"}
+        </div>
+        <h3 className="mt-2 font-display text-[18px] font-bold text-ink">{row.fullName}</h3>
+        <p className="mt-1 mb-4 font-display text-[13px] text-ink-80">
+          Dorsal #{row.dorsal} · {row.distance}. Al guardar se emite la constancia
+          en Stellar y se cobra la tarifa on-chain.
+        </p>
+
+        <div className="flex flex-col gap-3">
+          <div>
+            <label className="mb-1.5 block font-mono text-[10px] tracking-[0.12em] text-mut">
+              TIEMPO OFICIAL *
+            </label>
+            <input
+              value={tiempo}
+              onChange={(e) => setTiempo(e.target.value)}
+              placeholder="21:37"
+              className={field}
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block font-mono text-[10px] tracking-[0.12em] text-mut">
+              RITMO /KM
+            </label>
+            <input
+              value={ritmo}
+              onChange={(e) => setRitmo(e.target.value)}
+              placeholder="4:19"
+              className={field}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block font-mono text-[10px] tracking-[0.12em] text-mut">
+                POS. GENERAL
+              </label>
+              <input
+                value={posGeneral}
+                onChange={(e) => setPosGeneral(e.target.value.replace(/\D/g, ""))}
+                placeholder="42"
+                className={field}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block font-mono text-[10px] tracking-[0.12em] text-mut">
+                POS. CATEGORÍA
+              </label>
+              <input
+                value={posCategoria}
+                onChange={(e) => setPosCategoria(e.target.value.replace(/\D/g, ""))}
+                placeholder="7"
+                className={field}
+              />
+            </div>
+          </div>
+        </div>
+
+        {err && <p className="mt-3 font-display text-[13px] text-danger">{err}</p>}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-line bg-white px-4 py-2 font-display text-[13px] font-semibold text-ink transition hover:border-mut"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={busy || !tiempo.trim()}
+            onClick={submit}
+            className="rounded-full bg-teal px-4 py-2 font-display text-[13px] font-semibold text-white transition hover:bg-teal-deep disabled:opacity-50"
+          >
+            {busy ? "Emitiendo…" : "Emitir constancia"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

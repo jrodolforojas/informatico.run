@@ -6,6 +6,8 @@ import { Customizer } from "@/components/constancia/Customizer";
 import { SocialProof } from "@/components/shared/SocialProof";
 import { createClient } from "@/lib/supabase/server";
 import { getSocialProof } from "@/lib/social-proof";
+import { getConstanciaChain } from "@/lib/acta/read";
+import { isActaConfigured } from "@/lib/acta/env";
 
 export const metadata: Metadata = {
   title: "Mi constancia — informático.run()",
@@ -41,10 +43,37 @@ export default async function Page() {
           .select("full_name")
           .eq("id", auth.user.id)
           .single();
+
+        // Anclaje on-chain. Si ACTA no está configurado en este entorno la
+        // constancia sigue funcionando, solo que sin la prueba en Stellar.
+        const chain = isActaConfigured()
+          ? await getConstanciaChain(auth.user.id, event.id)
+          : { inscripcion: null, finisher: null };
+
         real = {
           name: prof?.full_name ?? "",
           dorsal: ins.dorsal,
           status: ins.status as "pending" | "paid",
+          inscripcion: chain.inscripcion
+            ? {
+                vcId: chain.inscripcion.vcId,
+                txId: chain.inscripcion.txId,
+                network: chain.inscripcion.network,
+                simulated: chain.inscripcion.status === "simulated",
+              }
+            : null,
+          finisher: chain.finisher
+            ? {
+                vcId: chain.finisher.vcId,
+                txId: chain.finisher.txId,
+                network: chain.finisher.network,
+                simulated: chain.finisher.status === "simulated",
+                tiempoOficial: String(chain.finisher.claims.tiempoOficial ?? "--:--"),
+                ritmo: chain.finisher.claims.ritmo
+                  ? String(chain.finisher.claims.ritmo)
+                  : null,
+              }
+            : null,
         };
       }
     }
@@ -68,7 +97,18 @@ export default async function Page() {
         </Container>
       )}
       <CredencialStates real={real} />
-      <Customizer initialDorsal={real?.dorsal ?? undefined} />
+      <Customizer
+        initialDorsal={real?.dorsal ?? undefined}
+        resultado={
+          real?.finisher
+            ? {
+                time: real.finisher.tiempoOficial,
+                pace: real.finisher.ritmo ?? "--:--",
+                vcId: real.finisher.vcId,
+              }
+            : undefined
+        }
+      />
     </>
   );
 }
