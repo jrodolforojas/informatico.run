@@ -12,6 +12,12 @@ type ShareCardProps = {
   phrase?: string;
   ratio?: "square" | "story";
   data?: ShareCardData;
+  /**
+   * Identificador de la constancia anclada en Stellar. Sin él la tarjeta es
+   * una vista previa: no lleva sello de verificado ni referencia on-chain,
+   * porque no habría nada que verificar.
+   */
+  vcId?: string;
 };
 
 function Stats({
@@ -67,6 +73,26 @@ function Stats({
   );
 }
 
+/** Sello para la tarjeta sin anclaje: dice lo que es, no "verificado". */
+function PreviewTag({ color }: { color: string }) {
+  return (
+    <span
+      className="inline-flex items-center"
+      style={{
+        gap: 5,
+        border: `1px solid ${color}`,
+        borderRadius: 999,
+        padding: "4px 9px",
+        opacity: 0.75,
+      }}
+    >
+      <span className="font-mono" style={{ fontSize: "2cqw", color, letterSpacing: "0.06em" }}>
+        VISTA PREVIA
+      </span>
+    </span>
+  );
+}
+
 export function ShareCard({
   template = "dark",
   accent = C.teal,
@@ -74,6 +100,7 @@ export function ShareCard({
   phrase = "Mi primer 5K, verificado.",
   ratio = "square",
   data,
+  vcId,
 }: ShareCardProps) {
   const d = data ?? { time: "21:37", pace: "4:19", dist: "5K" };
   const isStory = ratio === "story";
@@ -81,7 +108,14 @@ export function ShareCard({
   const timeSize = isStory ? "23cqw" : "20cqw";
   const markSize = isStory ? 30 : 28;
   const [tMin, tSec] = d.time.split(":");
-  const footer = `${phrase ? `"${phrase}"` : "TX 7a3f…d29c"} · #YoCorríInformático`;
+  const verified = Boolean(vcId);
+  const footer = [
+    phrase ? `"${phrase}"` : null,
+    vcId ? `verificar: informatico.run/verificar/${vcId}` : null,
+    "#YoCorríInformático",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   if (template === "light") {
     return (
@@ -96,7 +130,7 @@ export function ShareCard({
               informático<span style={{ color: accent }}>.run()</span>
             </span>
           </div>
-          <TagVerified />
+          {verified ? <TagVerified /> : <PreviewTag color={C.mut} />}
         </div>
         <div>
           <div className="flex items-center" style={{ gap: "2.5%" }}>
@@ -145,15 +179,19 @@ export function ShareCard({
               informático.run()
             </span>
           </div>
-          <span
-            className="inline-flex items-center"
-            style={{ gap: 5, background: "rgba(11,20,48,0.12)", borderRadius: 999, padding: "4px 9px" }}
-          >
-            <Check size={12} bg={C.navy} color={accent} />
-            <span className="font-mono" style={{ fontSize: "2cqw", color: C.navy, letterSpacing: "0.06em" }}>
-              VERIFICADO
+          {verified ? (
+            <span
+              className="inline-flex items-center"
+              style={{ gap: 5, background: "rgba(11,20,48,0.12)", borderRadius: 999, padding: "4px 9px" }}
+            >
+              <Check size={12} bg={C.navy} color={accent} />
+              <span className="font-mono" style={{ fontSize: "2cqw", color: C.navy, letterSpacing: "0.06em" }}>
+                VERIFICADO
+              </span>
             </span>
-          </span>
+          ) : (
+            <PreviewTag color="rgba(11,20,48,0.6)" />
+          )}
         </div>
         <div>
           <div
@@ -189,21 +227,25 @@ export function ShareCard({
             informático<span style={{ color: accent }}>.run()</span>
           </span>
         </div>
-        <span
-          className="inline-flex items-center"
-          style={{
-            gap: 5,
-            background: "rgba(43,224,204,0.13)",
-            border: "1px solid rgba(43,224,204,0.4)",
-            borderRadius: 999,
-            padding: "4px 9px",
-          }}
-        >
-          <Check size={12} bg={accent} color={C.navy} />
-          <span className="font-mono" style={{ fontSize: "2cqw", color: accent, letterSpacing: "0.06em" }}>
-            VERIFICADO
+        {verified ? (
+          <span
+            className="inline-flex items-center"
+            style={{
+              gap: 5,
+              background: "rgba(43,224,204,0.13)",
+              border: "1px solid rgba(43,224,204,0.4)",
+              borderRadius: 999,
+              padding: "4px 9px",
+            }}
+          >
+            <Check size={12} bg={accent} color={C.navy} />
+            <span className="font-mono" style={{ fontSize: "2cqw", color: accent, letterSpacing: "0.06em" }}>
+              VERIFICADO
+            </span>
           </span>
-        </span>
+        ) : (
+          <PreviewTag color={C.mutDark} />
+        )}
       </div>
       <div>
         <div className="font-mono" style={{ fontSize: "2.8cqw", letterSpacing: "0.16em", color: "#7f8da0" }}>
